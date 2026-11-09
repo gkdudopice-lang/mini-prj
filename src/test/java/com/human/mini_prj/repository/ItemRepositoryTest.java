@@ -1,14 +1,11 @@
 package com.human.mini_prj.repository;
 
-import com.human.mini_prj.constant.ItemSellStatus;
-import com.human.mini_prj.entity.Item;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
