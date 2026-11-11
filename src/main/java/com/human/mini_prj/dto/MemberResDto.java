@@ -15,5 +15,6 @@ public class MemberResDto {
     private String userId;
     private String name;
     private String image;
+    private String phone;
     private LocalDateTime regDate;
 }

@@ -119,6 +119,7 @@ public class AuthService {
         dto.setEmail(member.getEmail());
         dto.setName(member.getName());
         dto.setImage(member.getImage());
+        dto.setPhone(member.getPhone());
         dto.setRegDate(member.getRegDate());
 
         return dto;
@@ -156,6 +157,8 @@ public class AuthService {
         member.setName(dto.getName());
         member.setPwd(passwordEncoder.encode(dto.getPwd()));
         member.setUserId(dto.getUserId());
+        member.setEmail(dto.getEmail());
+        member.setPhone(dto.getPhone());
         return member;
 
     }
