@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Configuration;
 @RequiredArgsConstructor
 public class DataInit {
 
+
     private final ConcertRepository concertRepository;
 
     @Bean

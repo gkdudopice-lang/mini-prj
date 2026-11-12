@@ -50,7 +50,7 @@ public class AuthController {
     // 재발급
     @PostMapping("/reissue")
     public ResponseEntity<TokenDto> reissue(@RequestBody LoginReqDto dto) {
-        return ResponseEntity.ok(authService.reissue(dto.getEmail()));
+        return ResponseEntity.ok(authService.reissue(dto.getUserId()));
     }
     // 로그아웃
     @PostMapping("/logout")
