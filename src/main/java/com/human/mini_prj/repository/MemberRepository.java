@@ -1,5 +1,6 @@
 package com.human.mini_prj.repository;
 
+import com.human.mini_prj.constant.Provider;
 import com.human.mini_prj.entity.Member;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -56,5 +57,6 @@ public interface MemberRepository extends JpaRepository <Member,Long> {
     Optional<Member> findByUserIdAndPwd(
             String userId, String pwd
     );
+    Optional<Member> findByProviderAndProviderId(Provider provider, String providerId);
 
 }

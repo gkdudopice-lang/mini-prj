@@ -48,7 +48,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/board/**", "/comment/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN") // * 추가
                         // ⭐ 추가: 콘서트 조회 허용 (홈 화면, 목록, 상세)
-                        .requestMatchers(HttpMethod.GET, "/concerts/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/concerts", "/concerts/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/seats/*/remaining").permitAll()
                         .anyRequest().authenticated())
 
