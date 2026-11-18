@@ -3,6 +3,7 @@ package com.human.mini_prj.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.cglib.core.Local;
 
 import java.time.LocalDateTime;
 
@@ -20,6 +21,7 @@ public class Reservation {
 
     private LocalDateTime reservedAt = LocalDateTime.now();         // 날짜 불러오는거
     // seatNum 제거한 이유는 ReservationSeat에서 좌석 연결 정보를 관리하려고
+    private LocalDateTime expiresAt;
 
     @ManyToOne
     @JoinColumn(name = "schedule_id")

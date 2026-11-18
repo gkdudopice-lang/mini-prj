@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -44,12 +45,13 @@ public class ReservationService {
                         new RuntimeException("공연 회차가 존재하지 않습니다.")
                 );
 
-        // 4. 선택한 좌석 조회
+        // 4. 선택한 좌석 조회 및 예매 가능 여부 확인
         List<Seat> seats = new ArrayList<>();
 
         for (String seatNumber : dto.getSeatNumbers()) {
 
-            Seat seat = seatRepository.findBySchedule_IdAndSeatNumber(
+            // 좌석을 잠금 상태로 조회
+            Seat seat = seatRepository.findForUpdateByScheduleAndSeatNumber(
                             dto.getScheduleId(),
                             seatNumber
                     )
@@ -59,20 +61,39 @@ public class ReservationService {
                             )
                     );
 
+            // 이미 다른 사용자가 점유했거나 예매한 좌석인지 확인
+            if (!"AVAILABLE".equals(seat.getStatus())) {
+                throw new RuntimeException(
+                        seatNumber + " 좌석은 이미 선택된 좌석입니다."
+                );
+            }
+
             seats.add(seat);
         }
 
         // 5. 예매 객체 생성 및 회원 연결
         Reservation reservation = new Reservation();
 
+        LocalDateTime now = LocalDateTime.now();
+
         reservation.setMember(member);
         reservation.setConcertSchedule(schedule);
         reservation.setStatus("PENDING");
+        reservation.setReservedAt(now);
+        reservation.setExpiresAt(now.plusMinutes(5));
 
         Reservation saved = reservationRepository.save(reservation);
 
-        // 6. 선택한 좌석을 예매 정보에 연결
+        // 6. 선택한 좌석을 임시 점유하고 예매 정보에 연결
         for (Seat seat : seats) {
+
+            // 좌석을 5분 동안 임시 점유
+            seat.setStatus("HELD");
+
+            // 현재 좌석을 점유한 예매 번호 저장
+            seat.setHeldReservationId(saved.getId());
+
+            seatRepository.save(seat);
 
             ReservationSeat reservationSeat = new ReservationSeat();
 
@@ -137,6 +158,15 @@ public class ReservationService {
             );
         }
 
+        // 3. 결제 만료 시간 확인
+        if (reservation.getExpiresAt() == null ||
+                !LocalDateTime.now().isBefore(reservation.getExpiresAt())) {
+
+            throw new IllegalArgumentException(
+                    "결제 가능 시간이 만료되었습니다. 다시 예매해 주세요."
+            );
+        }
+
         // 3. 결제 완료 처리
         reservation.setStatus("PAID");
 
@@ -149,7 +179,19 @@ public class ReservationService {
 
             Seat seat = reservationSeat.getSeat();
 
+            // 현재 예매가 점유하고 있는 좌석인지 확인
+            if (!Long.valueOf(reservationId).equals(seat.getHeldReservationId())) {
+                throw new IllegalArgumentException(
+                        "현재 예매에서 점유한 좌석이 아닙니다."
+                );
+            }
+
+            // 결제 완료 상태로 변경
             seat.setStatus("RESERVED");
+
+            // 임시 점유 예매 번호 초기화
+            seat.setHeldReservationId(null);
+
             seatRepository.save(seat);
         }
 
@@ -181,5 +223,48 @@ public class ReservationService {
                 concert,
                 reservationSeats
         );
+    }
+
+    // 5분이 지난 예매 자동 만료 처리
+    @Transactional
+    public void expirePendingReservations() {
+
+        // 현재 시간 기준으로 만료된 예매 조회
+        List<Reservation> expiredReservations =
+                reservationRepository.findByStatusAndExpiresAtLessThanEqual(
+                        "PENDING",
+                        LocalDateTime.now()
+                );
+
+        // 만료된 예매 하나씩 처리
+        for (Reservation reservation : expiredReservations) {
+
+            // 예매 상태를 EXPIRED로 변경
+            reservation.setStatus("EXPIRED");
+
+            // 해당 예매에 연결된 좌석 조회
+            List<ReservationSeat> reservationSeats =
+                    reservationSeatRepository.findByReservation_Id(
+                            reservation.getId()
+                    );
+
+            // 해당 예매가 아직 점유 중인 좌석만 반환
+            for (ReservationSeat reservationSeat : reservationSeats) {
+
+                Seat seat = reservationSeat.getSeat();
+
+                // 좌석의 점유 예매 번호가 현재 예매 번호와 같은지 확인
+                if (Long.valueOf(reservation.getId())
+                        .equals(seat.getHeldReservationId())) {
+
+                    seat.setStatus("AVAILABLE");
+                    seat.setHeldReservationId(null);
+
+                    seatRepository.save(seat);
+                }
+            }
+
+            reservationRepository.save(reservation);
+        }
     }
 }
