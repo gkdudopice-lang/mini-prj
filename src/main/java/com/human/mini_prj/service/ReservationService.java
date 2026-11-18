@@ -1,9 +1,11 @@
+
 package com.human.mini_prj.service;
 
 import com.human.mini_prj.dto.ReservationReqDto;
 import com.human.mini_prj.dto.ReservationResDto;
 import com.human.mini_prj.entity.*;
 import com.human.mini_prj.repository.*;
+import com.human.mini_prj.security.SecurityUtil;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,24 +22,33 @@ public class ReservationService {
     private final SeatRepository seatRepository;
     private final ReservationRepository reservationRepository;
     private final ReservationSeatRepository reservationSeatRepository;
+    private final MemberRepository memberRepository;
 
     // 예매 생성
     @Transactional
     public ReservationResDto createReservation(ReservationReqDto dto) {
 
-        // 1. 공연 회차 조회
+        // 1. JWT에서 로그인한 회원의 userId 가져오기
+        String userId = SecurityUtil.currentUserId();
+
+        // 2. 로그인한 회원 조회
+        Member member = memberRepository.findByUserId(userId)
+                .orElseThrow(() ->
+                        new RuntimeException("회원 정보를 찾을 수 없습니다.")
+                );
+
+        // 3. 공연 회차 조회
         ConcertSchedule schedule = concertScheduleRepository.findById(dto.getScheduleId())
                 .orElseThrow(() ->
                         new RuntimeException("공연 회차가 존재하지 않습니다.")
                 );
 
-        // 2. 선택한 좌석 조회
+        // 4. 선택한 좌석 조회
         List<Seat> seats = new ArrayList<>();
 
         for (String seatNumber : dto.getSeatNumbers()) {
 
-            Seat seat = seatRepository
-                    .findBySchedule_IdAndSeatNumber(
+            Seat seat = seatRepository.findBySchedule_IdAndSeatNumber(
                             dto.getScheduleId(),
                             seatNumber
                     )
@@ -50,15 +61,16 @@ public class ReservationService {
             seats.add(seat);
         }
 
-        // 3. 예매 객체 생성
+        // 5. 예매 객체 생성 및 회원 연결
         Reservation reservation = new Reservation();
 
+        reservation.setMember(member);
         reservation.setConcertSchedule(schedule);
         reservation.setStatus("PENDING");
 
         Reservation saved = reservationRepository.save(reservation);
 
-        // 4. 선택한 좌석을 예매 정보에 연결
+        // 6. 선택한 좌석을 예매 정보에 연결
         for (Seat seat : seats) {
 
             ReservationSeat reservationSeat = new ReservationSeat();
@@ -84,18 +96,41 @@ public class ReservationService {
         return new ReservationResDto(reservation);
     }
 
+    // 로그인한 회원의 예매 내역 조회
+    @Transactional(readOnly = true)
+    public List<ReservationResDto> getMyReservations() {
+
+        // 1. JWT에서 현재 로그인한 회원의 userId 가져오기
+        String userId = SecurityUtil.currentUserId();
+
+        // 2. 회원 정보 조회
+        Member member = memberRepository.findByUserId(userId)
+                .orElseThrow(() ->
+                        new RuntimeException("회원 정보를 찾을 수 없습니다.")
+                );
+
+        // 3. 해당 회원의 예매 내역 조회 (최신순)
+        List<Reservation> reservations =
+                reservationRepository.findByMember_IdOrderByReservedAtDesc(member.getId());
+
+        // 4. Reservation 목록을 ReservationResDto 목록으로 변환
+        return reservations.stream()
+                .map(ReservationResDto::new)
+                .toList();
+    }
+
     // 결제 처리
     @Transactional
     public ReservationResDto confirmPayment(Long reservationId) {
 
-        //1. 예매 정보 조회
+        // 1. 예매 정보 조회
         Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(()->
+                .orElseThrow(() ->
                         new IllegalArgumentException("예매 정보가 없습니다.")
                 );
 
         // 2. 결제 대기 상태인지 확인
-        if(!"PENDING".equals(reservation.getStatus())) {
+        if (!"PENDING".equals(reservation.getStatus())) {
             throw new IllegalArgumentException(
                     "결제 대기 상태의 예매만 결제할 수 있습니다."
             );
@@ -104,18 +139,21 @@ public class ReservationService {
         // 3. 결제 완료 처리
         reservation.setStatus("PAID");
 
-        //4. 해당 예매의 연결된 좌석 조회
-        List<ReservationSeat>reservationSeats =
+        // 4. 해당 예매에 연결된 좌석 조회
+        List<ReservationSeat> reservationSeats =
                 reservationSeatRepository.findByReservation_Id(reservationId);
 
         // 5. 좌석 상태 변경
-        for(ReservationSeat reservationSeat : reservationSeats) {
+        for (ReservationSeat reservationSeat : reservationSeats) {
+
             Seat seat = reservationSeat.getSeat();
 
             seat.setStatus("RESERVED");
             seatRepository.save(seat);
         }
-        Reservation saved =reservationRepository.save(reservation);
-        return  new ReservationResDto(saved);
+
+        Reservation saved = reservationRepository.save(reservation);
+
+        return new ReservationResDto(saved);
     }
 }

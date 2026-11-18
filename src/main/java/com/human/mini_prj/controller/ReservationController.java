@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -32,5 +33,11 @@ public class ReservationController {
             @PathVariable Long reservationId) {
 
         return reservationService.confirmPayment(reservationId);
+    }
+
+    // 로그인한 회원의 예매 내역 조회
+    @GetMapping("/my")
+    public List<ReservationResDto> getMyReservations() {
+        return reservationService.getMyReservations();
     }
 }

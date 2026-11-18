@@ -25,6 +25,11 @@ public class Reservation {
     @JoinColumn(name = "schedule_id")
     private ConcertSchedule concertSchedule;
 
+    // 예매한 회원 정보 연결
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id")
+    private Member member;
+
 
 
 }
