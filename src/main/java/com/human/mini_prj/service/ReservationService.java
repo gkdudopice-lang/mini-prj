@@ -23,6 +23,7 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final ReservationSeatRepository reservationSeatRepository;
     private final MemberRepository memberRepository;
+    private final ConcertRepository concertRepository;
 
     // 예매 생성
     @Transactional
@@ -81,19 +82,19 @@ public class ReservationService {
             reservationSeatRepository.save(reservationSeat);
         }
 
-        return new ReservationResDto(saved);
+        return convertToDto(saved);
     }
 
     // 예매 상세 조회
     @Transactional(readOnly = true)
-    public ReservationResDto getReservation(Long id) {
+    public ReservationResDto getReservation(Long reservationId) {
 
-        Reservation reservation = reservationRepository.findById(id)
+        Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() ->
                         new RuntimeException("예매 정보가 없습니다.")
                 );
 
-        return new ReservationResDto(reservation);
+        return convertToDto(reservation);
     }
 
     // 로그인한 회원의 예매 내역 조회
@@ -115,7 +116,7 @@ public class ReservationService {
 
         // 4. Reservation 목록을 ReservationResDto 목록으로 변환
         return reservations.stream()
-                .map(ReservationResDto::new)
+                .map(this::convertToDto)
                 .toList();
     }
 
@@ -154,6 +155,31 @@ public class ReservationService {
 
         Reservation saved = reservationRepository.save(reservation);
 
-        return new ReservationResDto(saved);
+        return convertToDto(saved);
+    }
+
+    // 예매 정보를 화면에 전달할 DTO로 변환
+    private ReservationResDto convertToDto(Reservation reservation) {
+
+        // 예매에 연결된 공연 회차에서 콘서트 ID 가져오기
+        Long concertId = reservation.getConcertSchedule().getConcertId();
+
+        // 콘서트 정보 조회
+        Concert concert = concertRepository.findById(concertId)
+                .orElseThrow(() ->
+                        new RuntimeException("공연 정보를 찾을 수 없습니다.")
+                );
+
+        // 예매에 연결된 좌석 목록 조회
+        List<ReservationSeat> reservationSeats =
+                reservationSeatRepository.findByReservation_Id(
+                        reservation.getId()
+                );
+
+        return new ReservationResDto(
+                reservation,
+                concert,
+                reservationSeats
+        );
     }
 }
