@@ -53,6 +53,22 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(ex.getMessage(), "NOT_FOUND"));
     }
 
+    // 이미 작성한 리뷰인 경우
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException ex) {
+
+        if ("이미 리뷰를 작성한 예약입니다.".equals(ex.getMessage())) {
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body(new ErrorResponse("이미 작성하신 리뷰입니다.", "DUPLICATE_REVIEW"));
+        }
+
+        log.error("RuntimeException 발생", ex);
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("알 수 없는 서버 오류가 발생했습니다.", "UNKNOWN"));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleDefault(Exception ex) {
         log.error("알 수 없는 오류", ex);   // 스택 트레이스까지 로그에 남김
