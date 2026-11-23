@@ -74,4 +74,15 @@ public class AuthController {
         );
     }
 
+    // 구글 로그인: 인가 코드 → 우리 서비스 토큰 발행
+    @PostMapping("/google")
+    public ResponseEntity<TokenDto> googleLogin(
+            @RequestBody GoogleLoginReqDto dto) {
+
+        return ResponseEntity.ok(
+                authService.googleLogin(dto.getCode())
+        );
+    }
+
+
 }

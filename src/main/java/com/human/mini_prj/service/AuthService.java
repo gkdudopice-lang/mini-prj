@@ -4,6 +4,7 @@ import com.human.mini_prj.constant.Authority;
 import com.human.mini_prj.constant.Provider;
 import com.human.mini_prj.dto.KakaoUserInfo;
 import com.human.mini_prj.dto.NaverUserInfo;
+import com.human.mini_prj.dto.GoogleUserInfo;
 import com.human.mini_prj.dto.MemberResDto;
 import com.human.mini_prj.dto.SignUpReqDto;
 import com.human.mini_prj.dto.TokenDto;
@@ -37,6 +38,7 @@ public class AuthService {
     private final TokenProvider tokenProvider;
     private final KakaoOAuthService kakaoOAuthService; // 카카오 통신 부분
     private final NaverOAuthService naverOAuthService; // 네이버 통신 부분
+    private final GoogleOAuthService googleOAuthService; // 구글 통신 부분
 
     // 회원 가입 여부 확인
     public boolean isDuplicatedEmail(String userId) {
@@ -103,6 +105,25 @@ public class AuthService {
 
         return tokenDto;
     }
+    // 구글 로그인: 인가 코드 → 구글 사용자 확인 → 우리 JWT 발급
+    public TokenDto googleLogin(String code) {
+
+        String googleToken = googleOAuthService.getAccessToken(code);
+        GoogleUserInfo info = googleOAuthService.getUserInfo(googleToken);
+
+        // 처음이면 자동 가입, 이미 있으면 기존 회원 사용
+        Member member = memberRepository.findByProviderAndProviderId(
+                        Provider.GOOGLE, info.id())
+                .orElseGet(() -> memberRepository.save(toGoogleMember(info)));
+
+        // 우리 서비스 JWT 발급
+        TokenDto tokenDto = tokenProvider.createToken(
+                member.getUserId(), member.getAuthority());
+
+        saveRefreshToken(member, tokenDto);
+
+        return tokenDto;
+    }
 
     // ★ 카카오 사용자 → Member
     private Member toKakaoMember(KakaoUserInfo info) {
@@ -155,6 +176,38 @@ public class AuthService {
         member.setName(info.nickname());
         member.setImage(info.profileImage());
         member.setProvider(Provider.NAVER);
+        member.setProviderId(info.id());
+        member.setAuthority(Authority.ROLE_USER);
+
+        return member;
+    }
+    // 구글 사용자 → Member
+    private Member toGoogleMember(GoogleUserInfo info) {
+
+        if (info == null || info.id() == null || info.id().isBlank()) {
+            throw new CustomException(
+                    HttpStatus.BAD_REQUEST,
+                    "GOOGLE_INFO_MISSING",
+                    "구글로부터 필수 사용자 정보를 가져오지 못했습니다."
+            );
+        }
+
+        Member member = new Member();
+
+        member.setUserId("google_" + info.id());
+        member.setEmail("google_" + info.id());
+
+        if (info.name() == null || info.name().isBlank()) {
+            throw new CustomException(
+                    HttpStatus.BAD_REQUEST,
+                    "GOOGLE_NAME_MISSING",
+                    "구글 이름 정보가 제공되지 않았습니다."
+            );
+        }
+
+        member.setName(info.name());
+        member.setImage(info.picture());
+        member.setProvider(Provider.GOOGLE);
         member.setProviderId(info.id());
         member.setAuthority(Authority.ROLE_USER);
 
