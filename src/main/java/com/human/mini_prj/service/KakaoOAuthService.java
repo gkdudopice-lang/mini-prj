@@ -30,6 +30,7 @@ public class KakaoOAuthService {
     private final String clientSecret;
     private final String redirectUri;
 
+
     public KakaoOAuthService(@Value("${kakao.client-id}") String clientId,
                              @Value("${kakao.client-secret}") String clientSecret,
                              @Value("${kakao.redirect-uri}") String redirectUri) {

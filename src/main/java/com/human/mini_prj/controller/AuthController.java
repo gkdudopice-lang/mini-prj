@@ -64,4 +64,14 @@ public class AuthController {
     public ResponseEntity<TokenDto> kakaoLogin(@RequestBody KakaoLoginReqDto dto){
         return ResponseEntity.ok(authService.kakaoLogin(dto.code()));
     }
+    // 네이버 로그인: 인가 코드 → 우리 서비스 토큰 발행
+    @PostMapping("/naver")
+    public ResponseEntity<TokenDto> naverLogin(
+            @RequestBody NaverLoginReqDto dto) {
+
+        return ResponseEntity.ok(
+                authService.naverLogin(dto.getCode(), dto.getState())
+        );
+    }
+
 }

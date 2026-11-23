@@ -3,6 +3,7 @@ package com.human.mini_prj.service;
 import com.human.mini_prj.constant.Authority;
 import com.human.mini_prj.constant.Provider;
 import com.human.mini_prj.dto.KakaoUserInfo;
+import com.human.mini_prj.dto.NaverUserInfo;
 import com.human.mini_prj.dto.MemberResDto;
 import com.human.mini_prj.dto.SignUpReqDto;
 import com.human.mini_prj.dto.TokenDto;
@@ -35,6 +36,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final TokenProvider tokenProvider;
     private final KakaoOAuthService kakaoOAuthService; // 카카오 통신 부분
+    private final NaverOAuthService naverOAuthService; // 네이버 통신 부분
 
     // 회원 가입 여부 확인
     public boolean isDuplicatedEmail(String userId) {
@@ -82,6 +84,26 @@ public class AuthService {
 
     }
 
+    // 네이버 로그인: 인가 코드 → 네이버 사용자 확인 → 우리 JWT 발급
+    public TokenDto naverLogin(String code, String state) {
+
+        String naverToken = naverOAuthService.getAccessToken(code, state);
+        NaverUserInfo info = naverOAuthService.getUserInfo(naverToken);
+
+        // 처음이면 자동 가입, 이미 있으면 기존 회원 사용
+        Member member = memberRepository.findByProviderAndProviderId(
+                        Provider.NAVER, info.id())
+                .orElseGet(() -> memberRepository.save(toNaverMember(info)));
+
+        // 우리 서비스 JWT 발급
+        TokenDto tokenDto = tokenProvider.createToken(
+                member.getUserId(), member.getAuthority());
+
+        saveRefreshToken(member, tokenDto);
+
+        return tokenDto;
+    }
+
     // ★ 카카오 사용자 → Member
     private Member toKakaoMember(KakaoUserInfo info) {
         // ① 카카오에서 필수 정보가 아예 안 넘어왔는지 방어
@@ -103,6 +125,39 @@ public class AuthService {
         member.setProvider(Provider.KAKAO);
         member.setProviderId(info.id());
         member.setAuthority(Authority.ROLE_USER);
+        return member;
+    }
+
+    // 네이버 사용자 → Member
+    private Member toNaverMember(NaverUserInfo info) {
+
+        if (info == null || info.id() == null || info.id().isBlank()) {
+            throw new CustomException(
+                    HttpStatus.BAD_REQUEST,
+                    "NAVER_INFO_MISSING",
+                    "네이버로부터 필수 사용자 정보를 가져오지 못했습니다."
+            );
+        }
+
+        Member member = new Member();
+
+        member.setUserId("naver_" + info.id());
+        member.setEmail("naver_" + info.id());
+
+        if (info.nickname() == null || info.nickname().isBlank()) {
+            throw new CustomException(
+                    HttpStatus.BAD_REQUEST,
+                    "NAVER_NICKNAME_MISSING",
+                    "네이버 닉네임 정보가 제공되지 않았습니다."
+            );
+        }
+
+        member.setName(info.nickname());
+        member.setImage(info.profileImage());
+        member.setProvider(Provider.NAVER);
+        member.setProviderId(info.id());
+        member.setAuthority(Authority.ROLE_USER);
+
         return member;
     }
 
