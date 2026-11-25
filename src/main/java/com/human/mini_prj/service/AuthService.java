@@ -21,6 +21,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.human.mini_prj.constant.Authority;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -61,6 +62,9 @@ public class AuthService {
     public TokenDto login(String userId, String pwd) {
         Member member = memberRepository.findByUserId(userId)
                 .orElseThrow(this::loginFailed);
+        if (member.isWithdrawn()) {
+            throw new IllegalStateException("탈퇴 처리된 계정입니다.");
+        }
         // 카카오 회원은 일반 로그인 불가 (카카오 회원은 비밀번호가 없음)
         if (member.getPwd() == null || !passwordEncoder.matches(pwd, member.getPwd())) {   // 평문 vs 해시 비교
             throw loginFailed();
