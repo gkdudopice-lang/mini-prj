@@ -1,0 +1,11 @@
+package com.human.mini_prj.constant;
+
+// 공연 색인 상태
+// READY 인 글만 RAG 검색 대상(허용목록)에 들어 감.
+
+public enum IndexStatus {
+    INDEXING,   // 색인 대기, 진행중( 작성, 수정 직후)
+    READY,      // 색인 완료 -> 검색 가능
+    FAILED      // 색인 실패 -> 재색인으로 복구
+
+}

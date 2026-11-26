@@ -8,7 +8,8 @@ package com.human.mini_prj.rag.dto;
 public record SourceDto(
         Long concertId,
         String title,
-        Integer price,
-        String location,
+        String fieldName,
         String snippet,
-        double score) {}
+        Double score
+) {
+}

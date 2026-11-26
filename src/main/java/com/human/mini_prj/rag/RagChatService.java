@@ -1,5 +1,6 @@
 package com.human.mini_prj.rag;
 
+import com.human.mini_prj.constant.IndexStatus;
 import com.human.mini_prj.entity.Concert;
 import com.human.mini_prj.exception.CustomException;
 import com.human.mini_prj.rag.dto.*;
@@ -48,38 +49,17 @@ public class RagChatService {
         return res.withSources(safeSources);
     }
     private List<Long> allowList(String scope, String userId) {
-        return concertRepository.findAll().stream()
+        return concertRepository.findByIndexStatus(IndexStatus.READY).stream()
                 .map(Concert::getId)
                 .toList();
     }
-    // DB에 저장된 전체 공연 색인
-    public int indexAllConcerts() {
-
-        // 1. DB에서 공연 전체 조회
-        List<Concert> concerts = concertRepository.findAll();
+    // React 에서 전달받은 공연 전체 색인
+    public int indexAllConcerts(List<IndexReqDto> concerts) {
 
         int totalChunks = 0;
 
-        // 2. 공연 하나씩 FastAPI로 전송
-        for (Concert concert : concerts) {
-
-            IndexReqDto req = new IndexReqDto(
-                    concert.getId(),
-                    concert.getTitle(),
-                    concert.getPrice(),
-                    concert.getLocation(),
-                    concert.getNotice(),
-                    concert.getCasting(),
-                    concert.getDetail(),
-                    concert.getPriceInfo(),
-                    concert.getGuide(),
-                    concert.getRefund(),
-                    concert.getStory(),
-                    concert.getMood()
-            );
-
-            // 3. 색인 결과 청크 수 누적
-            totalChunks += ragClient.index(req);
+        for (IndexReqDto concert : concerts) {
+            totalChunks += ragClient.index(concert);
         }
 
         return totalChunks;

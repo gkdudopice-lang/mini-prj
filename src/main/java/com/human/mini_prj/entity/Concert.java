@@ -1,8 +1,11 @@
 package com.human.mini_prj.entity;
 
+import com.human.mini_prj.constant.IndexStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -32,4 +35,13 @@ public class Concert {
     private String story;      // 줄거리
     @Column(columnDefinition = "TEXT")
     private String mood;       // 분위기
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private IndexStatus indexStatus =IndexStatus.INDEXING;
+
+    @Column(columnDefinition = "TEXT")
+    private String indexError;
+
+    private LocalDateTime indexedAt;
+
 }
